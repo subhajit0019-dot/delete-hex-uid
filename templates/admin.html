@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#09090b">
+  <title>Delete Hex | Admin Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-dashboard-body">
+
+  <div class="admin-container">
+
+    <!-- Top Admin Header -->
+    <header class="admin-topbar">
+      <div class="admin-topbar-left">
+        <a href="{{ url_for('admin_panel') }}" class="admin-brand">
+          <div class="deletehex-title" style="font-size: 22px;">Delete<span class="deletehex-accent">Hex</span></div>
+        </a>
+        <span class="admin-badge-role">ADMIN CONSOLE</span>
+
+        <!-- Maintenance indicator in top bar -->
+        {% if maintenance_mode %}
+        <div class="status-pill-admin status-pill-warn">
+          <span class="pill-dot pill-dot-warn"></span>
+          <span>MAINTENANCE MODE ACTIVE</span>
+        </div>
+        {% else %}
+        <div class="status-pill-admin status-pill-live">
+          <span class="pill-dot pill-dot-live"></span>
+          <span>SYSTEM OPERATIONAL</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="admin-topbar-right">
+        <a href="{{ url_for('index') }}" target="_blank" class="admin-nav-btn">
+          <span>View Public Portal</span>
+          <span style="font-size: 13px;">↗</span>
+        </a>
+        <a href="{{ url_for('admin_logout') }}" class="admin-nav-btn admin-btn-logout">
+          <span>Sign Out</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Operational Alerts -->
+    {% if error %}
+    <div class="admin-alert-error" role="alert">
+      <span class="admin-alert-icon">⚠️</span>
+      <div class="admin-alert-text">{{ error }}</div>
+    </div>
+    {% endif %}
+    {% if msg %}
+    <div class="admin-alert-success" role="alert">
+      <span class="admin-alert-icon">✅</span>
+      <div class="admin-alert-text">{{ msg }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Metrics & Control Grid -->
+    <section class="admin-grid">
+
+      <!-- Card 1: Free Whitelist Maintenance Toggle -->
+      <div class="admin-card admin-card-action {% if maintenance_mode %}card-border-warn{% else %}card-border-live{% endif %}">
+        <div class="admin-card-head">
+          <span class="admin-card-label">FREE WHITELIST ACCESS CONTROL</span>
+          {% if maintenance_mode %}
+          <span class="admin-status-badge badge-warn">PAUSED</span>
+          {% else %}
+          <span class="admin-status-badge badge-live">ONLINE</span>
+          {% endif %}
+        </div>
+
+        <div class="admin-card-body">
+          <h2 class="admin-action-title">
+            {% if maintenance_mode %}
+            Maintenance Mode is ON
+            {% else %}
+            Portal is Accepting Claims
+            {% endif %}
+          </h2>
+          <p class="admin-card-desc">
+            {% if maintenance_mode %}
+            Free public UID claims are currently <strong>blocked</strong>. Visitors see an under-maintenance notification.
+            {% else %}
+            Free public UID whitelist claims are <strong>active</strong> with a strict 24-hour rate limit per user.
+            {% endif %}
+          </p>
+
+          <form action="{{ url_for('admin_toggle_maintenance') }}" method="POST" class="admin-toggle-form">
+            {% if maintenance_mode %}
+            <button type="submit" class="admin-toggle-btn btn-turn-on">
+              <span class="btn-dot dot-green"></span>
+              <span>Turn Maintenance OFF (Resume Claims)</span>
+            </button>
+            {% else %}
+            <button type="submit" class="admin-toggle-btn btn-turn-off">
+              <span class="btn-dot dot-amber"></span>
+              <span>Turn Maintenance ON (Pause Claims)</span>
+            </button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Whitelisted UIDs -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-label">LIFETIME CLAIMS</span>
+          <span class="admin-stat-icon">📊</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-stat-number">{{ stats.total_claims }}</div>
+          <p class="admin-card-desc">Total UID bypass requests whitelisted in the system database.</p>
+        </div>
+      </div>
+
+      <!-- Card 3: 24h Activity -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-label">PAST 24 HOURS</span>
+          <span class="admin-stat-icon">⚡</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-stat-number">{{ stats.claims_24h }}</div>
+          <p class="admin-card-desc">UID claims processed across all users within the last 24-hour cycle.</p>
+        </div>
+      </div>
+
+      <!-- Card 4: Cooldown Management -->
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <span class="admin-card-label">COOLDOWN LOCKS</span>
+          <span class="admin-stat-icon">🔒</span>
+        </div>
+        <div class="admin-card-body">
+          <div class="admin-stat-number">{{ stats.active_cooldowns }}</div>
+          <p class="admin-card-desc">Users currently under active 24h cooldown timer.</p>
+          <form action="{{ url_for('admin_reset_all_cooldowns') }}" method="POST" onsubmit="return confirm('Are you sure you want to reset ALL 24-hour cooldowns? This will allow every user to claim again immediately.');">
+            <button type="submit" class="admin-btn-secondary btn-full">
+              <span>Reset All 24h Cooldowns</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Claims Management Section -->
+    <section class="admin-table-section">
+      <div class="admin-table-header">
+        <div class="table-header-left">
+          <h2 class="admin-section-heading">Whitelisted UIDs Monitor</h2>
+          <span class="table-count-badge">{{ claims|length }} Record{% if claims|length != 1 %}s{% endif %}</span>
+        </div>
+
+        <div class="table-header-right">
+          <!-- Search Bar -->
+          <form action="{{ url_for('admin_panel') }}" method="GET" class="admin-search-form">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input 
+                type="text" 
+                name="q" 
+                value="{{ search_q }}" 
+                class="search-input" 
+                placeholder="Search by UID or IP..." 
+                autocomplete="off">
+              {% if search_q %}
+              <a href="{{ url_for('admin_panel') }}" class="search-clear-btn" title="Clear Search">✕</a>
+              {% endif %}
+            </div>
+            <button type="submit" class="admin-btn-search">Search</button>
+          </form>
+
+          <!-- Manual Whitelist Activation Trigger -->
+          <button type="button" class="admin-btn-add-uid" onclick="toggleAddUidModal(true)" title="Manually whitelist a new UID">
+            <span style="font-size: 15px; font-weight: 800; line-height: 1;">+</span>
+            <span>Add UID</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Claims Table -->
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th>ACCOUNT UID</th>
+              <th>CLAIMED DATE & TIME</th>
+              <th>CLIENT IP / IDENTIFIER</th>
+              <th>TYPE</th>
+              <th>STATUS</th>
+              <th style="text-align: right;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if claims %}
+              {% for item in claims %}
+              <tr>
+                <td class="td-index">{{ loop.index }}</td>
+                <td class="td-uid">
+                  <div class="uid-copy-group">
+                    <span class="uid-code" id="uid_{{ loop.index }}">{{ item.uid }}</span>
+                    <button type="button" class="btn-table-copy" onclick="copyUidText('{{ item.uid }}', this)" title="Copy UID">
+                      Copy
+                    </button>
+                  </div>
+                </td>
+                <td class="td-time">{{ item.readable_date }}</td>
+                <td class="td-ip">{{ item.identifier }}</td>
+                <td class="td-type">
+                  <span class="tag-type">{{ item.claim_type }}</span>
+                </td>
+                <td class="td-status">
+                  {% if item.is_active %}
+                  <span class="pill-active">ACTIVE (24H)</span>
+                  {% else %}
+                  <span class="pill-expired">EXPIRED</span>
+                  {% endif %}
+                </td>
+                <td class="td-actions">
+                  <div class="row-actions">
+                    <!-- Reset IP Cooldown for this specific claim -->
+                    <form action="{{ url_for('admin_reset_cooldown') }}" method="POST" style="display:inline;" onsubmit="return confirm('Reset cooldown for IP {{ item.identifier }}?');">
+                      <input type="hidden" name="target" value="{{ item.identifier }}">
+                      <button type="submit" class="btn-action-sm btn-action-reset" title="Allow this IP to claim again">
+                        Reset Cooldown
+                      </button>
+                    </form>
+
+                    <!-- Delete UID -->
+                    <form action="{{ url_for('admin_delete_uid') }}" method="POST" style="display:inline;" onsubmit="return confirm('Remove UID {{ item.uid }} from whitelist database?');">
+                      <input type="hidden" name="uid" value="{{ item.uid }}">
+                      <button type="submit" class="btn-action-sm btn-action-delete" title="Delete record">
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="table-empty-row">
+                  <div class="table-empty-state">
+                    <span style="font-size: 26px;">📭</span>
+                    <p>{% if search_q %}No claims matched "{{ search_q }}"{% else %}No UIDs claimed yet. When visitors add UIDs on the portal, they will appear here.{% endif %}</p>
+                    {% if search_q %}
+                    <a href="{{ url_for('admin_panel') }}" class="admin-back-link" style="margin-top: 8px;">View all records</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Add UID Modal -->
+  <div id="addUidModal" class="admin-modal-backdrop" style="display: none;" onclick="if(event.target === this) toggleAddUidModal(false);">
+    <div class="admin-modal-dialog">
+      <div class="admin-modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-pill">MANUAL ACTIVATION</span>
+          <h3 class="modal-title">Add Whitelist UID</h3>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="toggleAddUidModal(false)" title="Close modal">✕</button>
+      </div>
+
+      <p class="modal-desc">
+        Directly whitelist an account UID to the upstream gateway (<code>action={{ api_action_add }}</code>) and record it in the database.
+      </p>
+
+      <form action="{{ url_for('admin_add_uid') }}" method="POST" id="adminAddUidForm" class="modal-form" autocomplete="off">
+        <div class="admin-field">
+          <label for="modalUidInput" class="admin-label">ACCOUNT UID (NUMERIC)</label>
+          <div class="admin-input-wrap">
+            <span class="admin-input-prefix">#</span>
+            <input 
+              type="text" 
+              id="modalUidInput" 
+              name="uid" 
+              class="admin-input" 
+              placeholder="e.g. 2461243789" 
+              inputmode="numeric"
+              pattern="[0-9]+"
+              required>
+          </div>
+        </div>
+
+        <div class="admin-field">
+          <label for="modalDaysInput" class="admin-label">DURATION (DAYS)</label>
+          <div class="admin-input-wrap">
+            <span class="admin-input-prefix">⏱</span>
+            <input 
+              type="number" 
+              id="modalDaysInput" 
+              name="days" 
+              class="admin-input" 
+              value="1" 
+              min="1" 
+              max="365"
+              required>
+          </div>
+        </div>
+
+        <div id="modalStatusMsg" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="toggleAddUidModal(false)">Cancel</button>
+          <button type="submit" class="btn-submit-activate" id="modalSubmitBtn">
+            <span>Activate & Whitelist</span>
+            <span style="font-size: 13px;">↗</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function copyUidText(val, btn) {
+      if (!val) return;
+      navigator.clipboard.writeText(val).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "COPIED";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove("copied");
+        }, 1200);
+      }).catch(() => {});
+    }
+
+    function toggleAddUidModal(show) {
+      const modal = document.getElementById("addUidModal");
+      const uidInput = document.getElementById("modalUidInput");
+      const msgBox = document.getElementById("modalStatusMsg");
+      if (show) {
+        modal.style.display = "flex";
+        if (msgBox) msgBox.style.display = "none";
+        setTimeout(() => uidInput && uidInput.focus(), 50);
+      } else {
+        modal.style.display = "none";
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        toggleAddUidModal(false);
+      }
+    });
+
+    // AJAX Form submission with instant UI feedback
+    const addUidForm = document.getElementById("adminAddUidForm");
+    if (addUidForm) {
+      addUidForm.addEventListener("submit", async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById("modalSubmitBtn");
+        const msgBox = document.getElementById("modalStatusMsg");
+        const uidInput = document.getElementById("modalUidInput");
+        const daysInput = document.getElementById("modalDaysInput");
+
+        const uid = uidInput.value.trim();
+        const days = daysInput.value.trim();
+
+        if (!uid || !/^\d+$/.test(uid)) {
+          msgBox.style.display = "block";
+          msgBox.style.background = "#1b1013";
+          msgBox.style.color = "#ff453a";
+          msgBox.style.border = "1px solid #ff453a";
+          msgBox.textContent = "Please enter a valid numeric Account UID.";
+          return;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = "<span>Activating with gateway...</span>";
+        msgBox.style.display = "none";
+
+        try {
+          const res = await fetch("{{ url_for('admin_add_uid') }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({ uid: uid, days: days })
+          });
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            msgBox.style.display = "block";
+            msgBox.style.background = "#0d1e16";
+            msgBox.style.color = "#30d158";
+            msgBox.style.border = "1px solid #30d158";
+            msgBox.textContent = data.message || "UID activated successfully!";
+            setTimeout(() => {
+              window.location.href = "{{ url_for('admin_panel') }}?msg=" + encodeURIComponent(data.message || "UID activated successfully!");
+            }, 800);
+          } else {
+            msgBox.style.display = "block";
+            msgBox.style.background = "#1b1013";
+            msgBox.style.color = "#ff453a";
+            msgBox.style.border = "1px solid #ff453a";
+            msgBox.textContent = data.message || "Failed to whitelist UID.";
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+          }
+        } catch (err) {
+          msgBox.style.display = "block";
+          msgBox.style.background = "#1b1013";
+          msgBox.style.color = "#ff453a";
+          msgBox.style.border = "1px solid #ff453a";
+          msgBox.textContent = "Network error connecting to activation gateway.";
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

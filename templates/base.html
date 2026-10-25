@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Delete Hex — fast, secure UID whitelist access.">
+  <title>{% block title %}Delete Hex{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22black%22/><path d=%22M27 72V28h12l22 27V28h12v44H62L39 44v28z%22 fill=%22white%22/></svg>">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="page-progress" aria-hidden="true"><span></span></div>
+  <div class="page-noise" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="app-wrapper">
+    <div class="system-bar">
+      <span>Delete Hex</span>
+      <span class="system-bar-center">EST. 2026</span>
+      <span><i></i> ALL SYSTEMS OPERATIONAL</span>
+    </div>
+    <header class="navbar">
+      <a href="{{ url_for('index') }}" class="brand" aria-label="Delete Hex home">
+        <span class="brand-mark">DH</span>
+        <span class="brand-copy brand-copy-full"><strong>Delete Hex</strong></span>
+      </a>
+      <nav class="nav-actions" aria-label="Primary navigation">
+        <span class="nav-coordinate">DH–001</span>
+        <a href="{{ DELETEHEX_SERVER_INVITE }}" target="_blank" rel="noopener noreferrer" class="nav-link">Delete Hex Discord</a>
+        {% if session.get('user') %}
+          <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+          <div class="user-profile">
+            <img src="{{ session['user']['avatar'] }}" alt="" class="user-avatar">
+            <span class="user-name">{{ session['user']['global_name'] }}</span>
+            <a href="{{ url_for('logout') }}" class="profile-exit" title="Sign out" aria-label="Sign out">↗</a>
+          </div>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-primary">Login with Discord <span aria-hidden="true">↗</span></a>
+        {% endif %}
+      </nav>
+      <span class="nav-corner nav-corner-left" aria-hidden="true"></span>
+      <span class="nav-corner nav-corner-right" aria-hidden="true"></span>
+    </header>
+    <main class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack" aria-live="polite">
+            {% for category, message in messages %}<div class="alert alert-{{ category if category != 'error' else 'danger' }}">{{ message }}</div>{% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+      <div class="footer-brand">
+        <span class="brand-mark brand-mark-small">DH</span>
+        <div><strong>Delete Hex</strong><small>UID whitelist infrastructure</small></div>
+      </div>
+      <div class="footer-links">
+        <a href="{{ DELETEHEX_SERVER_INVITE }}" target="_blank" rel="noopener noreferrer">Delete Hex Discord</a>
+        <span>24-hour access cycle</span>
+      </div>
+      <span class="footer-copy">© 2026 Delete Hex</span>
+    </footer>
+  </div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#09090b">
+  <title>Delete Hex Admin | Authenticate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+
+  <div class="admin-login-wrapper">
+    <div class="admin-login-card">
+      <div class="admin-login-header">
+        <div class="deletehex-brand-wrap">
+          <span class="deletehex-title">Delete<span class="deletehex-accent">Hex</span></span>
+          <span class="deletehex-bar"></span>
+        </div>
+        <div class="admin-pill">
+          <span class="admin-pill-dot"></span>
+          <span>ADMIN ACCESS</span>
+        </div>
+      </div>
+
+      <p class="admin-login-sub">Enter administrative security credentials to manage maintenance and monitor claimed UIDs.</p>
+
+      {% if error %}
+      <div class="admin-alert-error" role="alert">
+        <span class="admin-alert-icon">⚠️</span>
+        <div class="admin-alert-text">{{ error }}</div>
+      </div>
+      {% endif %}
+
+      <form action="{{ url_for('admin_panel') }}" method="POST" class="admin-form" autocomplete="off">
+        <div class="admin-field">
+          <label for="adminUsername" class="admin-label">ADMIN ID</label>
+          <div class="admin-input-wrap">
+            <span class="admin-input-prefix">#</span>
+            <input 
+              type="text" 
+              id="adminUsername" 
+              name="username" 
+              class="admin-input" 
+              placeholder="Enter Admin ID" 
+              required 
+              autofocus>
+          </div>
+        </div>
+
+        <div class="admin-field">
+          <label for="adminPassword" class="admin-label">SECURITY KEY</label>
+          <div class="admin-input-wrap">
+            <span class="admin-input-prefix">🔑</span>
+            <input 
+              type="password" 
+              id="adminPassword" 
+              name="password" 
+              class="admin-input" 
+              placeholder="••••••••" 
+              required>
+          </div>
+        </div>
+
+        <button type="submit" class="admin-btn-primary">
+          <span>Authenticate</span>
+          <span class="admin-btn-arrow">→</span>
+        </button>
+      </form>
+
+      <div class="admin-login-footer">
+        <a href="{{ url_for('index') }}" class="admin-back-link">← Return to Public Whitelist Portal</a>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

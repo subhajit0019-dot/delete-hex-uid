@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Access Console — Delete Hex{% endblock %}
+{% block content %}
+{% set privileged = is_admin or reseller_active %}
+{% set can_submit = is_admin or (reseller_active and reseller['credits'] > 0) or (not reseller and cooldown_remaining == 0) %}
+<header class="dashboard-heading">
+  <div>
+    <span class="section-kicker">ACCESS CONSOLE / 01</span>
+    <h1>Good to see you,<br>{{ user['global_name'] }}.</h1>
+  </div>
+  <div class="dashboard-identity">
+    <div class="avatar-frame"><img src="{{ user['avatar'] }}" alt=""><span></span></div>
+    <div class="dashboard-meta">
+      <span class="meta-label">ACCOUNT</span>
+      <span class="meta-value">{{ user['id'] }}</span>
+      {% if is_admin %}<span class="account-tier">ADMINISTRATOR</span>
+      {% elif reseller_active %}<span class="account-tier">RESELLER · {{ reseller['credits'] }} CREDITS</span>
+      {% elif reseller %}<span class="account-tier account-tier-expired">RESELLER EXPIRED</span>
+      {% else %}<span class="account-tier">FREE MEMBER</span>{% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="console-ticker" aria-label="Console status">
+  <span><i></i> SESSION SECURE</span><span>AUTH / DISCORD</span><span>REGION / AUTO</span><span>PROTOCOL / NX–01</span>
+</div>
+
+{% if reseller %}
+<section class="reseller-wallet {% if reseller_active %}is-active{% else %}is-expired{% endif %}" aria-label="Reseller wallet">
+  <div class="reseller-wallet-mark" aria-hidden="true">R</div>
+  <div class="reseller-wallet-copy">
+    <span class="section-kicker">DISCORD BOT / LIVE SYNC</span>
+    <h2>{% if reseller_active %}Reseller access active.{% else %}Reseller access expired.{% endif %}</h2>
+    <p>Your Discord role and wallet are linked to this dashboard automatically.</p>
+  </div>
+  <div class="reseller-wallet-stat">
+    <span>CREDIT BALANCE</span>
+    <strong id="walletCreditBalance">{{ reseller['credits'] }}</strong>
+  </div>
+  <div class="reseller-wallet-stat">
+    <span>{% if reseller_active %}VALID UNTIL{% else %}EXPIRED ON{% endif %}</span>
+    <strong class="wallet-date">{{ reseller_expiry_date }}</strong>
+  </div>
+  <span class="reseller-live"><i></i>{% if reseller_active %} LIVE{% else %} EXPIRED{% endif %}</span>
+</section>
+{% endif %}
+
+<section class="metric-grid" aria-label="Account overview">
+  <article class="metric-card metric-card-primary">
+    <span class="metric-index">01 / STATUS</span>
+    <div class="metric-main">
+      <span id="cooldownTimer" class="cooldown-indicator {% if cooldown_remaining == 0 %}ready{% else %}active{% endif %}">
+        {% if is_admin %}ADMIN ACCESS{% elif reseller_active %}RESELLER ACTIVE{% elif cooldown_remaining == 0 %}READY{% else %}CALCULATING{% endif %}
+      </span>
+    </div>
+    <p>{% if is_admin %}Unlimited administrative access.{% elif reseller_active %}Credit-based access is enabled.{% elif cooldown_remaining == 0 %}Your daily claim is available.{% else %}Next claim unlocks automatically.{% endif %}</p>
+  </article>
+  <article class="metric-card">
+    <span class="metric-index">02 / REGISTERED</span>
+    <strong class="metric-number">{{ user_uids|length }}</strong>
+    <p>UIDs linked to this Discord profile.</p>
+  </article>
+  <article class="metric-card">
+    {% if is_admin %}
+      <span class="metric-index">03 / CREDIT BALANCE</span><strong class="metric-number metric-word">∞</strong><p>Administrative access has no credit limit.</p>
+    {% elif reseller %}
+      <span class="metric-index">03 / RESELLER CREDITS</span><strong class="metric-number" id="creditBalance">{{ reseller['credits'] }}</strong><p>{% if reseller_active %}Valid until {{ reseller_expiry_date }}.{% else %}Expired on {{ reseller_expiry_date }}.{% endif %}</p>
+    {% else %}
+      <span class="metric-index">03 / ACCESS WINDOW</span><strong class="metric-number">24<span>H</span></strong><p>One free UID per account, per cycle.</p>
+    {% endif %}
+  </article>
+</section>
+
+<div id="alertContainer" aria-live="polite"></div>
+
+<section class="dashboard-panel claim-panel">
+  <span class="panel-code" aria-hidden="true">NX / REQUEST / 001</span>
+  <div class="panel-heading">
+    <div><span class="section-kicker">NEW REQUEST</span><h2>Whitelist a UID</h2></div>
+    <div class="panel-meta"><span>ACCESS TYPE</span><strong>{% if is_admin %}ADMIN / UNLIMITED{% elif reseller_active %}RESELLER / CREDIT BASED{% elif reseller %}RESELLER / EXPIRED{% else %}FREE / 24 HOURS{% endif %}</strong></div>
+  </div>
+  <form id="whitelistForm" class="whitelist-form">
+    <label for="uidInput" class="input-label"><span>ACCOUNT UID</span><span>NUMBERS ONLY</span></label>
+    <div class="claim-control {% if privileged %}claim-control-privileged{% endif %}">
+      <span class="field-prefix">UID</span>
+      <input type="text" id="uidInput" name="uid" class="input-field" placeholder="5182947291" inputmode="numeric" pattern="[0-9]+" required autocomplete="off" aria-describedby="uidHelp">
+      {% if privileged %}
+      <label class="duration-field" for="dayInput"><span>DAYS</span><select id="dayInput" name="days" aria-label="Whitelist validity"><option value="1">01</option><option value="3">03</option><option value="7">07</option><option value="15">15</option><option value="30">30</option></select></label>
+      {% endif %}
+      <button type="submit" id="submitBtn" class="btn-submit" {% if not can_submit %}disabled{% endif %}>
+        {% if reseller and not reseller_active %}RESELLER EXPIRED{% elif reseller_active and reseller['credits'] <= 0 %}NO CREDITS{% elif cooldown_remaining > 0 and not privileged %}COOLDOWN ACTIVE{% else %}ACTIVATE ACCESS <span aria-hidden="true">↗</span>{% endif %}
+      </button>
+    </div>
+    <p id="uidHelp" class="input-help">{% if is_admin %}Select a validity period and verify the UID before submitting.{% elif reseller_active %}Each successful UID uses one reseller credit. Select validity and verify the UID first.{% elif reseller %}Your reseller access has expired. Contact an administrator to renew it.{% else %}Your quota locks for 24 hours after a successful request. Verify the UID before submitting.{% endif %}</p>
+  </form>
+</section>
+
+<section class="dashboard-panel">
+  <div class="panel-heading">
+    <div><span class="section-kicker">ACCESS HISTORY</span><h2>Your registered UIDs</h2></div>
+    <div class="panel-meta"><span>SOURCE</span><strong>DATABASE / LIVE SYNC</strong></div>
+  </div>
+  <div class="table-container">
+    {% if user_uids %}
+      <table class="data-table">
+        <thead><tr><th>Target UID</th><th>Validity</th><th>Type</th><th>Added</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for item in user_uids %}
+          <tr>
+            <td class="uid-cell">{{ item.uid }}</td><td>{{ item.expiry_days }} day</td><td class="capitalize">{{ item.claim_type }}</td><td>{{ item.added_date }}</td><td>{{ item.expiry_date }}</td>
+            <td>{% if item.is_active %}<span class="badge badge-active"><i></i> Active</span>{% else %}<span class="badge badge-expired">Expired</span>{% endif %}</td>
+            <td><button onclick="copyToClipboard('{{ item.uid }}', this)" class="copy-button" type="button">COPY</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state"><span class="empty-index">00</span><h3>No access history yet.</h3><p>Your first whitelisted UID will appear here.</p></div>
+    {% endif %}
+  </div>
+</section>
+
+{% if is_admin %}
+<section class="dashboard-panel reseller-admin-panel">
+  <div class="panel-heading">
+    <div><span class="section-kicker">ADMINISTRATION / RESELLER ACCESS</span><h2>Grant reseller access</h2></div>
+    <span class="account-tier">BOT + WEB SYNC</span>
+  </div>
+  <form id="resellerGrantForm" class="reseller-grant-form">
+    <label><span>DISCORD USER ID</span><input id="resellerDiscordId" type="text" inputmode="numeric" placeholder="123456789012345678" required></label>
+    <label><span>CREDITS</span><input id="resellerCredits" type="number" min="0" max="1000000000" value="10" required></label>
+    <label><span>VALIDITY / DAYS</span><input id="resellerDays" type="number" min="1" max="36500" value="30" required></label>
+    <button id="resellerGrantButton" type="submit">GRANT / UPDATE <span aria-hidden="true">↗</span></button>
+  </form>
+  <div class="reseller-admin-list">
+    <div class="reseller-list-head"><span>ACTIVE RESELLER REGISTRY</span><strong>{{ admin_resellers|length }} ACCOUNTS</strong></div>
+    {% if admin_resellers %}
+      {% for item in admin_resellers %}
+      <div class="reseller-admin-row" data-reseller-row="{{ item.discord_id }}">
+        <div><span>DISCORD ID</span><strong>{{ item.discord_id }}</strong></div>
+        <div><span>CREDITS</span><strong>{{ item.credits }}</strong></div>
+        <div><span>VALID UNTIL</span><strong>{{ item.expiry_date }}</strong></div>
+        <div><span>STATUS</span><strong>{% if item.is_active %}ACTIVE{% else %}EXPIRED{% endif %}</strong></div>
+        <button type="button" data-remove-reseller="{{ item.discord_id }}">REVOKE</button>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="reseller-list-empty">No reseller accounts in the shared bot database.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="dashboard-panel admin-panel">
+  <div class="panel-heading">
+    <div><span class="section-kicker">ADMINISTRATION / FULL CONTROL</span><h2>UID registry</h2></div>
+    <span class="account-tier">ADMIN VIEW</span>
+  </div>
+  <div class="admin-summary" aria-label="Registry summary">
+    <div><span>TOTAL RECORDS</span><strong id="adminTotalCount">{{ admin_stats.total }}</strong></div>
+    <div><span>ACTIVE</span><strong id="adminActiveCount">{{ admin_stats.active }}</strong></div>
+    <div><span>EXPIRED</span><strong id="adminExpiredCount">{{ admin_stats.expired }}</strong></div>
+    <label class="admin-search"><span>SEARCH REGISTRY</span><input id="adminRegistrySearch" type="search" placeholder="UID or Discord ID" autocomplete="off"></label>
+  </div>
+  {% if all_uids %}
+  <div class="admin-bulk-bar">
+    <label class="admin-select-all"><input type="checkbox" id="adminSelectAll"><span>SELECT VISIBLE</span></label>
+    <span id="adminSelectedCount">0 SELECTED</span>
+    <button type="button" id="adminBulkRemove" disabled>REMOVE SELECTED</button>
+  </div>
+  {% endif %}
+  <div class="table-container admin-table-container">
+    {% if all_uids %}
+    <table class="data-table admin-data-table" id="adminRegistryTable">
+      <thead><tr><th class="admin-check-column"><span class="sr-only">Select</span></th><th>UID</th><th>Owner Discord ID</th><th>Type</th><th>Duration</th><th>Added</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for item in all_uids %}
+        <tr data-admin-row data-search="{{ item.uid }} {{ item.discord_id }} {{ item.claim_type }}" data-status="{% if item.is_active %}active{% else %}expired{% endif %}">
+          <td class="admin-check-column"><input class="admin-row-check" type="checkbox" value="{{ item.uid }}" aria-label="Select UID {{ item.uid }}"></td>
+          <td class="uid-cell">{{ item.uid }}</td>
+          <td class="mono">{{ item.discord_id }}</td>
+          <td class="capitalize">{{ item.claim_type }}</td>
+          <td>{{ item.expiry_days }} day(s)</td>
+          <td>{{ item.added_date }}</td>
+          <td>{{ item.expiry_date }}</td>
+          <td>{% if item.is_active %}<span class="badge badge-active"><i></i> Active</span>{% else %}<span class="badge badge-expired">Expired</span>{% endif %}</td>
+          <td><button class="admin-remove-button" type="button" data-remove-uid="{{ item.uid }}">REMOVE</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="admin-no-results" id="adminNoResults" hidden>No registry entries match this search.</div>
+    {% else %}
+    <div class="empty-state"><span class="empty-index">00</span><h3>Registry is empty.</h3><p>Whitelisted UIDs will appear here with their full account details.</p></div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<aside class="support-strip">
+  <div><span class="section-kicker">NEED MORE ACCESS?</span><h3>Custom duration and reseller credits.</h3><p>Connect with Delete Hex staff for support, bulk whitelist access, or account questions.</p></div>
+  <div class="support-actions">
+    <a href="{{ DELETEHEX_SERVER_INVITE }}" target="_blank" rel="noopener noreferrer" class="btn btn-inverse">Delete Hex Discord <span aria-hidden="true">↗</span></a>
+  </div>
+</aside>
+{% endblock %}
+{% block scripts %}<script>window.initialCooldownRemaining = {{ cooldown_remaining }}; window.accountMode = "{% if is_admin %}admin{% elif reseller_active %}reseller{% elif reseller %}expired{% else %}free{% endif %}"; window.initialCreditBalance = {{ reseller['credits'] if reseller else 'null' }};</script>{% endblock %}
